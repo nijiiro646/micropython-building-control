@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watt's Up</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fcfcfc;
+            padding: 60px;
+            color: #1a1a1a;
+            font-size: 2rem; /* Global large font */
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+
+        .temp-row {
+            display: flex;
+            gap: 80px;
+            margin-bottom: 50px;
+        }
+
+        .temp-label {
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .box {
+            border: 2px solid #000;
+            border-radius: 10px;
+            padding: 15px 25px;
+            display: inline-block;
+            min-width: 120px;
+            text-align: center;
+            font-size: 2.5rem;
+        }
+
+        input[type="number"].box {
+            width: 120px;
+            outline: none;
+            font-family: inherit;
+            -moz-appearance: textfield;
+        }
+
+            input[type="number"]::-webkit-outer-spin-button,
+      	input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Radio Button */
+        p {
+            margin: 40px 0 15px 0;
+            font-weight: bold;
+        }
+
+        form {
+            display: flex;
+            gap: 40px; /* Puts them in a row */
+        }
+
+        input[type="radio"] {
+            width: 30px;
+            height: 30px;
+            vertical-align: middle;
+            cursor: pointer;
+        }
+
+        label {
+            vertical-align: middle;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<p align="right" style="font-weight: normal; font-size: 20px;"><a href="/login.html">Login</a></p>
+
+<div class="container">
+
+    <div class="temp-row">
+        <div>
+            <span class="temp-label">Current temperature</span>
+            <div class="box">21°C</div>
+        </div>
+        <div>
+            <span class="temp-label">Set temperature</span>
+            <input type="number" class="box" placeholder="—"> <span>°C</span>
+        </div>
+    </div>
+
+    <p>Light Status:</p>
+    <form>
+        <div>
+            <input type="radio" id="light_on" name="light_stats" value="On">
+            <label for="light_on">On</label>
+        </div>
+        <div>
+            <input type="radio" id="light_off" name="light_stats" value="Off">
+            <label for="light_off">Off</label>
+        </div>
+        <div>
+            <input type="radio" id="light_passive" name="light_stats" value="Passive">
+            <label for="light_passive">Passive</label>
+        </div>
+    </form>
+
+    <p>Heat Status:</p>
+    <form>
+        <div>
+            <input type="radio" id="heat_on" name="heat_stats" value="On">
+            <label for="heat_on">On</label>
+        </div>
+        <div>
+            <input type="radio" id="heat_off" name="heat_stats" value="Off">
+            <label for="heat_off">Off</label>
+        </div>
+        <div>
+            <input type="radio" id="heat_passive" name="heat_stats" value="Passive">
+            <label for="heat_passive">Passive</label>
+        </div>
+    </form>
+
+    <p>Alarm Status:</p>
+    <form>
+        <div>
+            <input type="radio" id="alarm_on" name="alarm_stats" value="On">
+            <label for="alarm_on">On</label>
+        </div>
+        <div>
+            <input type="radio" id="alarm_off" name="alarm_stats" value="Off">
+            <label for="alarm_off">Off</label>
+        </div>
+    </form>
+
+</div>
+
+</body>
+</html>

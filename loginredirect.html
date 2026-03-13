@@ -1,0 +1,14 @@
+<script>
+
+    function setFn() {
+        const value = "%COOKIE%"
+        document.cookie =
+            `we-agree-cookie=${value}`;
+        window.location.href="/mainpage.html";
+    }
+</script>
+
+
+<body onload="setFn()">
+
+</body>
