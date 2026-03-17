@@ -41,12 +41,17 @@ if(os.path.isfile('crdata.txt')):
 if(os.path.isfile('aat.txt')):
 	tokendatas = open('aat.txt','rt').readlines()
 	for line in tokendatas:
+		if(line=="" or not ('%' in line)):
+			continue
+        
 		token_info = line.split('%')
 		
 		if(len(token_info)!=2):
 			print("Server loading error: Unable to parse access token data: "+line)
 			continue
-		tokens[token_info[0]] = token_info[1]
+		username = token_info[1].replace("\n","") 
+		tokens[token_info[0]] = username
+	
 
 
 # Writes the credential data dictionary to file
