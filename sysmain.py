@@ -12,13 +12,22 @@ import AuthHandler
 import threading
 
 
-
+active=True
 
 # Setup system utilities
 sysutil.setup()
 
 # Timeout for the lights to switch off when there's no motion detected, in seconds
 MOTION_TIMEOUT = 5
+
+# Total width for LEDs using Pulse Width Modulation
+PW_TOTAL = 0.02
+
+
+# Modified by the script. Kept here so as to be recalculated
+# only when changed, rather than every cycle
+lights_pulse_ontime = PW_TOTAL*0.5
+lights_pulse_offtime = PW_TOTAL*0.5
 
 # Inputs
 
@@ -55,7 +64,7 @@ input_data = {
 
 # Current settings, controlled by the web interface
 settings = {
-    "lights":0,
+    "lights":1,
     "heat":0,
     "alarm":False,
     "settemp":21
@@ -121,13 +130,23 @@ sysutil.log("System initialized. Access point started: "+str(ap.ifconfig()))
 # Reads the data from the sensors and updates the input_data dictionary
 # Todo: Secure value bounds when interpreting
 def read_data():
-    if(time()%5==0):
-        print("Light sensor: "+str(ambient_light.read_u16()))
-        print("Thermistor: "+str(thermistor.read_u16()))
+    global lights_pulse_ontime
+    global lights_pulse_offtime
+    #if(time()%5==0):
+     #   print("Light sensor: "+str(ambient_light.read_u16()))
+      #  print("Thermistor: "+str(thermistor.read_u16()))
     
 
-
-    light_system.value(0 if ambient_light.read_u16()<25000 else 1)
+    ambient_val = ambient_light.read_u16()
+    if ambient_val>25000:
+        pwr = min(1.0,(ambient_val-25000)/10000)
+        lights_pulse_ontime = PW_TOTAL*pwr
+        lights_pulse_offtime = PW_TOTAL*(1-pwr)
+    else:
+        lights_pulse_ontime=0
+    
+    
+    
     if(time()>last_motion_time+MOTION_TIMEOUT):
         heat_system.value(0)
 
@@ -138,6 +157,20 @@ def read_data():
     input_data["temp"] = thermistor.read_u16()
         
 
+
+def lights_pulse():
+    if(lights_pulse_ontime<=0):
+        light_system.value(0)
+        return
+        
+    #global lights_pulse_ontime
+    #global lights_pulse_offtime
+    light_system.value(1)
+    sleep(lights_pulse_ontime)
+    light_system.value(0)
+    sleep(lights_pulse_offtime)
+    
+    
 
 
 
@@ -259,26 +292,39 @@ PIR.irq(trigger=Pin.IRQ_RISING, handler=pir_handler)
 
 # Main loop to handle the webpage, defined separately to be called by a separate thread.
 # This is necessary because socket.accept() blocks the thread while waiting for a connection.
-def webpage_loop():
-    while True:
-        main_loop()
+def machine_loop():
+    global active
+    while active:
+        read_data()
+        lights_pulse()
+    
+    
+    print("Stopped background loop")
+        
+        
 
 
-wp_thread = threading.Thread(target=webpage_loop)
-wp_thread.start()
+
+# Need to have this on the main thread and the data collection on the second thread.
+# Keep a global parameter indicating that the main thread is active and check it each time
+# in the background thread. Otherwise, the threads won't stop correctly.
+bg_thread = threading.Thread(target=machine_loop)
+bg_thread.start()
 
 
 # Main data collection & control loop
 while True:
     try:
+        main_loop()
         read_data()
-        sleep(0.5)
+        lights_pulse()
 
     # Catch errors and set default values before closing.
     # Stopping the script in Thonny throws a KeyboardInterrupt
     except KeyboardInterrupt:
         sysutil.log("System shut down from main terminal.")
         set_default_vals()
+        active=False
         import sys
         sys.exit()
     
@@ -286,6 +332,7 @@ while True:
     except Exception as e:
         sysutil.log("System closed due to an unhandled error in main loop")
         set_default_vals()
+        active=False
         print("[ERROR] System closed due to an unhandled error:")
         raise e
         
