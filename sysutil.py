@@ -27,7 +27,17 @@ def log(infostr):
     global logfile
     logfile.write(get_timestamp()+"\t"+infostr+"\n")
     logfile.flush()
-    
+
+
+def parse_dictval(val):
+    if(val.isdigit()):
+        return int(val)
+    elif(val=="True"):
+        return True
+    elif(val=="False"):
+        return False
+    else:
+        raise ValueError
 
 
 # Decodes http %-escapes in given string s

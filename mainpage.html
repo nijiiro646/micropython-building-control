@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+
+    function setFn() {
+        if(window.location.href!="http://192.168.4.13/mainpage.html"){
+            window.location.replace("/mainpage.html");
+            }
+    }
+</script>
+
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Watt's Up</title>
@@ -24,6 +34,11 @@
             gap: 80px;
             margin-bottom: 50px;
         }
+        
+        .radio-row{
+            gap:40px;
+            display: flex;
+        }
 
         .temp-label {
             display: block;
@@ -44,7 +59,6 @@
             width: 120px;
             outline: none;
             font-family: inherit;
-            -moz-appearance: textfield;
         }
 
             input[type="number"]::-webkit-outer-spin-button,
@@ -59,10 +73,6 @@
             font-weight: bold;
         }
 
-        form {
-            display: flex;
-            gap: 40px; /* Puts them in a row */
-        }
 
         input[type="radio"] {
             width: 30px;
@@ -78,12 +88,12 @@
         }
     </style>
 </head>
-<body>
+<body onload="setFn()">
 
 <p align="right" style="font-weight: normal; font-size: 20px;"><a href="/login.html">Login</a></p>
 
 <div class="container">
-
+    <form>
     <div class="temp-row">
         <div>
             <span class="temp-label">Current temperature</span>
@@ -91,54 +101,56 @@
         </div>
         <div>
             <span class="temp-label">Set temperature</span>
-            <input type="number" class="box" placeholder="—"> <span>°C</span>
+            <input type="number" name="settemp" class="box" min="18" max="25" value="%TEMP%"> <span>°C</span>
         </div>
     </div>
-
     <p>Light Status:</p>
-    <form>
+    <div class="radio-row">
         <div>
-            <input type="radio" id="light_on" name="light_stats" value="On">
+            <input type="radio" id="light_on" name="light_stats" value="On" disabled>
             <label for="light_on">On</label>
         </div>
         <div>
-            <input type="radio" id="light_off" name="light_stats" value="Off">
+            <input type="radio" id="light_off" name="light_stats" value="Off" disabled>
             <label for="light_off">Off</label>
         </div>
         <div>
-            <input type="radio" id="light_passive" name="light_stats" value="Passive">
+            <input type="radio" id="light_passive" name="light_stats" value="Passive" disabled>
             <label for="light_passive">Passive</label>
         </div>
-    </form>
+        </div>
 
     <p>Heat Status:</p>
-    <form>
+    <div class="radio-row">
         <div>
-            <input type="radio" id="heat_on" name="heat_stats" value="On">
+            <input type="radio" id="heat_on" name="heat_stats" value="On" disabled>
             <label for="heat_on">On</label>
         </div>
         <div>
-            <input type="radio" id="heat_off" name="heat_stats" value="Off">
+            <input type="radio" id="heat_off" name="heat_stats" value="Off" disabled>
             <label for="heat_off">Off</label>
         </div>
         <div>
-            <input type="radio" id="heat_passive" name="heat_stats" value="Passive">
+            <input type="radio" id="heat_passive" name="heat_stats" value="Passive" disabled>
             <label for="heat_passive">Passive</label>
         </div>
-    </form>
+</div>
 
     <p>Alarm Status:</p>
-    <form>
+    <div class="radio-row">
         <div>
-            <input type="radio" id="alarm_on" name="alarm_stats" value="On">
+            <input type="radio" id="alarm_on" name="alarm_stats" value="On" disabled>
             <label for="alarm_on">On</label>
         </div>
         <div>
-            <input type="radio" id="alarm_off" name="alarm_stats" value="Off">
+            <input type="radio" id="alarm_off" name="alarm_stats" value="Off" disabled>
             <label for="alarm_off">Off</label>
         </div>
-    </form>
-
+    </div>
+    <div>
+         <input type="submit" disabled>
+     </div>
+</form>
 </div>
 
 </body>

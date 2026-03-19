@@ -71,6 +71,24 @@ settings = {
 }
 
 
+# Load settings on init
+if(os.path.isfile('settings.txt')):
+    sdata = open('settings.txt','rt').readlines()
+    for line in sdata:
+        if(not ":" in line):
+            continue
+        dvals = line.split(":")
+        if(len(dvals)!=2 or not (dvals[0] in settings)):
+            continue
+        vstr = dvals[1]
+        try:
+            settings[dvals[0]] = sysutil.parse_dictval(dvals[1])
+        except ValueError:
+            print("[MENT] Server loading error: invalid settings value: "+dvals[1])
+    sdata.close()
+
+
+
 
 
 
@@ -83,7 +101,6 @@ last_motion_time = 0
 
 # Sets the default values for each output.
 # Called when the system is started up or shut down
-# Once the UI is properly implemented, this should set values based on stored settings.
 def set_default_vals():
     # The buzzer sounds when no voltage is supplied to its IO channel,
     # so the default (off) is when we do apply voltage.
@@ -159,8 +176,12 @@ def read_data():
 
 
 def lights_pulse():
-    if(lights_pulse_ontime<=0):
+    global settings
+    if(settings["lights"]==0 or settings["lights"]==2 and lights_pulse_ontime<=0):
         light_system.value(0)
+        return
+    elif(settings["lights"]==1):
+        light_system.value(1)
         return
         
     #global lights_pulse_ontime
@@ -187,23 +208,74 @@ def pir_handler(pin):
 
 # Checks for a valid cookie in an http request (string)
 # Returns true if there is a cookie and it contains a valid access token, otherwise false.
+# Also returns the token as a string, or empty string if no valid token.
 def check_cookie(request):
     cookie_index = request.find("we-agree-cookie")
     if(cookie_index<0):
-        return False
+        return False, ""
 
     print("Got cookie!")
     cookiestr = request[cookie_index:]
     token_index = cookiestr.find("token=")
     if(token_index<0):
         print("[MENT] Invalid cookie: "+cookiestr)
-        return False
+        return False, ""
 
     # 6 characters in "token=", then 24-character token
     token = cookiestr[token_index+6:token_index+6+24]
-    #Testing
-    print("Token: "+token)
-    return AuthHandler.is_valid_token(token)
+    return AuthHandler.is_valid_token(token), token
+
+param_values = ["Off","On","Passive"]
+
+
+# Main settings (on-off-passive) to be moved to helper function
+def set_settings(params,agent):
+    changed=False
+    if("heat_stats" in params):
+        value = param_values.index(params["heat_stats"])
+        if(value<0):
+            value=2
+        if(value!=settings["heat"]):
+            changed=True
+            settings["heat"] = value
+            sysutil.log("Heater set to "+param_values[value]+" by "+agent)
+            print("Heater set to "+param_values[value]+" by "+agent)
+    if("light_stats" in params):
+        value = param_values.index(params["light_stats"])
+        if(value<0):
+            value=2
+        if(value!=settings["lights"]):
+            changed=True
+            settings["lights"] = value
+            sysutil.log("Lights set to "+param_values[value]+" by "+agent)
+            print("Lights set to "+param_values[value]+" by "+agent)
+    if("alarm_stats" in params):
+        value = params["alarm_stats"]=="On"
+        if(value!=settings["alarm"]):
+            changed=True
+            settings["alarm"] = value
+            sysutil.log("Alarm turned "+("On" if value else "Off")+" by "+agent)
+            print("Alarm turned "+("On" if value else "Off")+" by "+agent)
+    if("settemp" in params):
+        if(params["settemp"].isdigit()):
+            val = int(params["settemp"])
+            if(val<18):
+                val=18
+            elif(val>25):
+                val=25
+            if(settings["settemp"]!=val):
+                changed=True
+                settings["settemp"] = val
+                sysutil.log("Temperature set to "+str(val)+" by "+agent)
+                print("Temperature set to "+str(val)+" by "+agent)
+
+    if(changed):
+        outfile = open("settings.txt","wt")
+        for k in settings.keys():
+            outfile.write(s+":"+settings[k]+"\n")
+        outfile.close()
+
+
 
 
 # Main run loop for the web interface
@@ -244,12 +316,20 @@ def main_loop():
         filename = filename[:filename.find("?")]
     if(filename=="" or filename=="mainpage.html"):
         print("[INFO] Received inbound connection: "+str(addr))
-        login_state=check_cookie(rqstring)
+        login_state, token = check_cookie(rqstring)
         print("Login state: "+str(login_state))
+        if(has_params and login_state):
+            try:
+                username = AuthHandler.get_user_for_token(token)
+            except KeyError:
+                pass
+            finally:
+                params = wphandler.parse_response(rqstring)
+                set_settings(params,username)
 
         response_code = "HTTP/1.1 200 OK"
         content_type = "text/html"
-        response = wphandler.get_html(input_data, settings)
+        response = wphandler.get_html(input_data, settings, login_state)
     else:
         response_code, content_type, response = wphandler.get_file(filename)
     

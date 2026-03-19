@@ -4,6 +4,9 @@
 
 import os
 
+
+idstrings = {0:"off",1:"on",2:"passive"}
+
 # Preload base page source
 pagesauce_base = open("mainpage.html","rt").read()
 
@@ -30,7 +33,18 @@ def get_file(href):
         return "HTTP/1.1 200 OK", "text/html", open(href,"rt").read()
 
 
+def get_element_id(html_line):
+    if(not "id" in html_line):
+        return ""
+    idindex = html_line.find("id=")+4
+    end_index = html_line[idindex:].find('"')
+    return html_line[idindex:end_index+idindex]
 
+
+# Returns the html for the main page.
+# Parameters: data - dictionary of measured data from the microcontroller
+# settings - dictionary of current settings for the system
+# login_state - boolean indicating whether the user is logged in with an admin account
 # Returns the html for the main page.
 # Parameters: data - dictionary of measured data from the microcontroller
 # settings - dictionary of current settings for the system
@@ -38,10 +52,32 @@ def get_file(href):
 def get_html(data, settings, login_state):
     global pagesauce_base
     result = pagesauce_base
+
+    checked_inputs = ["light_"+idstrings[settings["lights"]],
+        "heat_"+idstrings[settings["heat"]],
+        "alarm_"+("on" if settings["alarm"] else "off")]#,
+        #"vent_"+idstrings[settings["vent"]]]
+
     # Here we can replace keystrings in the base html with a passed parameter dict
     if(login_state):
         result = result.replace(">Login<",">Logout<")
         result = result.replace("/login.html","/logoutredirect.html")
+        result = result.replace(" disabled","") # Should replace all instances
+
+    result = result.replace("%TEMP%",str(settings["settemp"]))
+
+    res_lines = result.split("\n")
+    result = ""
+    for line in res_lines:
+        if(not '"radio"' in line):
+            result = result+line+"\n"
+            continue
+
+        input_id = get_element_id(line)
+        if(input_id in checked_inputs):
+            line = line.replace(">"," checked>")
+        result = result+line+"\n"
+
     
     return result
 
