@@ -27,7 +27,34 @@
             max-width: 900px;
             margin: 0 auto;
         }
+        
+        .submit-style {
+        background-color: green;   
+        color: white;                 /* Text color */
+        border: none;                 /* No border */
+        padding: 20px 40px;           /* Size */
+        font-size: 25px;              /* Text size */
+        font-family: sans-serif;      /* Clean font */
+        border-radius: 6px;           /* Rounded corners */
+        cursor: pointer;              /* Pointer on hover */
+        transition: background-color 0.3s ease;
+    }
 
+    .submit-style:hover {
+        background-color: #90ee90;    /* Darker blue on hover */
+    }
+
+    .submit-style:active {
+        background-color: black;    /* Black on click */
+        transform: scale(0.97);       /* Slight press effect */
+    }
+
+        .center-wrapper {
+                height: 20vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
 
         .temp-row {
             display: flex;
@@ -90,6 +117,11 @@
 </head>
 <body onload="setFn()">
 
+  <div class="imgcontainer">
+    <img src="Logo.webp" width="500" alt="Watt's Up" class="Watt's Up">
+  </div>
+
+
 <p align="right" style="font-weight: normal; font-size: 20px;"><a href="/login.html">Login</a></p>
 
 <div class="container">
@@ -136,6 +168,21 @@
         </div>
 </div>
 
+<p>Ventilation status:</p>
+<div class="radio-row">
+        <div>
+            <input type="radio" id="Ventilation_on" name="Ventilation_stats" value="On" disabled>
+            <label for="Ventilation_on">On</label>
+        </div>
+        <div>
+            <input type="radio" id="Ventilation_off" name="Ventilation_stats" value="Off"  disabled>
+            <label for="Ventilation_off">Off</label>
+        </div>
+        <div>
+            <input type="radio" id="Ventilation_passive" name="Ventilation_stats" value="Passive" disabled>
+            <label for="Ventilation_passive">Passive</label>
+        </div>
+    </div>
     <p>Alarm Status:</p>
     <div class="radio-row">
         <div>
@@ -147,9 +194,9 @@
             <label for="alarm_off">Off</label>
         </div>
     </div>
-    <div>
-         <input type="submit" disabled>
-     </div>
+    <div class="center-wrapper">
+  <input type="submit" value="Submit" class="submit-style" disabled>
+</div>
 </form>
 </div>
 

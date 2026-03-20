@@ -29,6 +29,8 @@ def get_file(href):
     # Don't want to keep this in memory any longer than necessary, Pico has only 200kB of RAM.
     if(ext=="webp"):
         return "HTTP/1.1 200 OK", "image/webp", open(href,"rb").read()
+    elif(ext=="ico"):
+        return "HTTP/1.1 200 OK", "image/png", open(href,"rb").read()
     else:
         return "HTTP/1.1 200 OK", "text/html", open(href,"rt").read()
 
@@ -55,8 +57,8 @@ def get_html(data, settings, login_state):
 
     checked_inputs = ["light_"+idstrings[settings["lights"]],
         "heat_"+idstrings[settings["heat"]],
-        "alarm_"+("on" if settings["alarm"] else "off")]#,
-        #"vent_"+idstrings[settings["vent"]]]
+        "alarm_"+idstrings[settings["alarm"]],
+        "Ventilation_"+idstrings[settings["vent"]]]
 
     # Here we can replace keystrings in the base html with a passed parameter dict
     if(login_state):

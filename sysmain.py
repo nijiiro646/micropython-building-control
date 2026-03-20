@@ -5,12 +5,14 @@
 from machine import *
 import network as ntw
 import socket as socks
-from utime import sleep, time
+from utime import *
 import sysutil
 import wphandler
 import AuthHandler
 import threading
-
+import asyncio
+import os
+import adafruit_sgp30 as sgp
 
 active=True
 
@@ -19,6 +21,8 @@ sysutil.setup()
 
 # Timeout for the lights to switch off when there's no motion detected, in seconds
 MOTION_TIMEOUT = 5
+GAS_MEASURE_INTERVAL = 1000 # gas measurement interval in ms
+GAS_BASELINE_INTERVAL = 60
 
 # Total width for LEDs using Pulse Width Modulation
 PW_TOTAL = 0.02
@@ -36,11 +40,20 @@ thermistor = ADC(26)
 
 PIR = Pin(18, Pin.IN, Pin.PULL_DOWN)
 
-# gas_sda = Pin(10)
-# gas_scl = Pin(11)
-# gas_sensor = I2C(1,sda=gas_sda, scl=gas_scl, freq=400000)
+gas_sda = Pin(10)
+gas_scl = Pin(11)
+i2c = I2C(1,sda=gas_sda, scl=gas_scl, freq=400000)
+#i2c.init(I2C.MASTER, baudreate=100000)
+
+gas_sensor = sgp.Adafruit_SGP30(i2c)
 
 
+co2eq, tvoc = gas_sensor.iaq_measure()
+print("CO2eq = %d ppm \t TVOC = %d ppb" % (co2eq, tvoc))
+
+# Initialize gas sensor
+# 0x2003 -> Init_air_quality
+#gas_sensor.writeto(0x58, '\x20\x03')
 
 
 # Outputs
@@ -66,14 +79,16 @@ input_data = {
 settings = {
     "lights":1,
     "heat":0,
-    "alarm":False,
+    "alarm":0,
+    "vent":1,
     "settemp":21
 }
 
 
 # Load settings on init
 if(os.path.isfile('settings.txt')):
-    sdata = open('settings.txt','rt').readlines()
+    sfile = open('settings.txt')
+    sdata = sfile.readlines()
     for line in sdata:
         if(not ":" in line):
             continue
@@ -85,7 +100,7 @@ if(os.path.isfile('settings.txt')):
             settings[dvals[0]] = sysutil.parse_dictval(dvals[1])
         except ValueError:
             print("[MENT] Server loading error: invalid settings value: "+dvals[1])
-    sdata.close()
+    sfile.close()
 
 
 
@@ -93,8 +108,16 @@ if(os.path.isfile('settings.txt')):
 
 
 # Other parameters:
-# Time of last motion detection
+# Time of last motion detection (s)
 last_motion_time = 0
+
+# Time of last gas measurement (ms)
+last_gas_time = 0
+
+last_baseline_time = time()+60
+
+# Whether or not a gas sensor measurement has been made after sending the measure command
+measured_gas = False
 
 
 
@@ -149,9 +172,10 @@ sysutil.log("System initialized. Access point started: "+str(ap.ifconfig()))
 def read_data():
     global lights_pulse_ontime
     global lights_pulse_offtime
-    #if(time()%5==0):
-     #   print("Light sensor: "+str(ambient_light.read_u16()))
-      #  print("Thermistor: "+str(thermistor.read_u16()))
+    global gas_sensor
+    global last_gas_time
+    global measured_gas
+    global last_baseline_time
     
 
     ambient_val = ambient_light.read_u16()
@@ -166,6 +190,22 @@ def read_data():
     
     if(time()>last_motion_time+MOTION_TIMEOUT):
         heat_system.value(0)
+    
+    ventilation_system.value(settings["vent"])
+
+    ticks = ticks_ms()
+    if(ticks>last_gas_time+GAS_MEASURE_INTERVAL):
+        last_gas_time = ticks
+        co2eq, tvoc = gas_sensor.iaq_measure()
+        print("CO2eq = %d ppm \t TVOC = %d ppb" % (co2eq, tvoc))
+    #if(time()>last_baseline_time+GAS_BASELINE_INTERVAL):
+     #   bl = gas_sensor.get_iaq_baseline()
+      #  print("Gas baseline: "+str(bl))
+       # sysutil.log("Gas baseline: "+str(bl))
+        #last_baseline_time = time()
+        
+       
+
 
 
 
@@ -177,7 +217,7 @@ def read_data():
 
 def lights_pulse():
     global settings
-    if(settings["lights"]==0 or settings["lights"]==2 and lights_pulse_ontime<=0):
+    if(settings["lights"]==0 or settings["lights"]==2 and lights_pulse_ontime<=0.003):
         light_system.value(0)
         return
     elif(settings["lights"]==1):
@@ -249,13 +289,22 @@ def set_settings(params,agent):
             settings["lights"] = value
             sysutil.log("Lights set to "+param_values[value]+" by "+agent)
             print("Lights set to "+param_values[value]+" by "+agent)
+        if("Ventilation_stats" in params):
+            value = param_values.index(params["Ventilation_stats"])
+            if(value<0):
+                value=2
+            if(value!=settings["vent"]):
+                changed=True
+                settings["vent"] = value
+                sysutil.log("Ventilation set to "+param_values[value]+" by "+agent)
+                print("Ventilation set to "+param_values[value]+" by "+agent)
     if("alarm_stats" in params):
-        value = params["alarm_stats"]=="On"
+        value = param_values.index(params["alarm_stats"])
         if(value!=settings["alarm"]):
             changed=True
             settings["alarm"] = value
-            sysutil.log("Alarm turned "+("On" if value else "Off")+" by "+agent)
-            print("Alarm turned "+("On" if value else "Off")+" by "+agent)
+            sysutil.log("Alarm turned "+param_values[value]+" by "+agent)
+            print("Alarm turned "+param_values[value]+" by "+agent)
     if("settemp" in params):
         if(params["settemp"].isdigit()):
             val = int(params["settemp"])
@@ -272,7 +321,7 @@ def set_settings(params,agent):
     if(changed):
         outfile = open("settings.txt","wt")
         for k in settings.keys():
-            outfile.write(s+":"+settings[k]+"\n")
+            outfile.write(k+":"+str(settings[k])+"\n")
         outfile.close()
 
 
@@ -372,6 +421,8 @@ PIR.irq(trigger=Pin.IRQ_RISING, handler=pir_handler)
 
 # Main loop to handle the webpage, defined separately to be called by a separate thread.
 # This is necessary because socket.accept() blocks the thread while waiting for a connection.
+# Additionally, reading the gas sensor data blocks the thread for 12 ms, which interferes with
+# the pulse-width modulation on the LEDs. So, we run the PWM LEDs on a separate thread also.
 def machine_loop():
     global active
     while active:
@@ -379,8 +430,7 @@ def machine_loop():
         lights_pulse()
     
     
-    print("Stopped background loop")
-        
+    print("Stopped machine loop")
         
 
 
@@ -388,16 +438,14 @@ def machine_loop():
 # Need to have this on the main thread and the data collection on the second thread.
 # Keep a global parameter indicating that the main thread is active and check it each time
 # in the background thread. Otherwise, the threads won't stop correctly.
-bg_thread = threading.Thread(target=machine_loop)
-bg_thread.start()
+machine_thread = threading.Thread(target=machine_loop)
+machine_thread.start()
 
 
 # Main data collection & control loop
 while True:
     try:
         main_loop()
-        read_data()
-        lights_pulse()
 
     # Catch errors and set default values before closing.
     # Stopping the script in Thonny throws a KeyboardInterrupt
@@ -410,7 +458,7 @@ while True:
     
     # For other errors, actually raise the error so it shows in the console
     except Exception as e:
-        sysutil.log("System closed due to an unhandled error in main loop")
+        sysutil.log("System closed due to an unhandled error")
         set_default_vals()
         active=False
         print("[ERROR] System closed due to an unhandled error:")
