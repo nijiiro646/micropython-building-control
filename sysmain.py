@@ -10,7 +10,6 @@ import sysutil
 import wphandler
 import AuthHandler
 import threading
-import asyncio
 import os
 import adafruit_sgp30 as sgp
 
@@ -20,12 +19,12 @@ active=True
 sysutil.setup()
 
 # Timeout for the lights to switch off when there's no motion detected, in seconds
-MOTION_TIMEOUT = 5
-GAS_MEASURE_INTERVAL = 1000 # gas measurement interval in ms
-GAS_BASELINE_INTERVAL = 60
+MOTION_TIMEOUT = const(5)
+GAS_MEASURE_INTERVAL = const(1000) # gas measurement interval in ms
+GAS_BASELINE_INTERVAL = const(600)
 
 # Total width for LEDs using Pulse Width Modulation
-PW_TOTAL = 0.02
+PW_TOTAL = const(0.02)
 
 
 # Modified by the script. Kept here so as to be recalculated
@@ -167,6 +166,48 @@ sysutil.log("System initialized. Access point started: "+str(ap.ifconfig()))
 
 
 
+
+
+def lights_pulse():
+    global settings
+    if(settings["lights"]==0 or settings["lights"]==2 and lights_pulse_ontime<=0.003):
+        light_system.value(0)
+        sleep(PW_TOTAL)
+        return
+    elif(settings["lights"]==1):
+        light_system.value(1)
+        sleep(PW_TOTAL)
+        return
+        
+    #global lights_pulse_ontime
+    #global lights_pulse_offtime
+    light_system.value(1)
+    sleep(lights_pulse_ontime)
+    light_system.value(0)
+    sleep(lights_pulse_offtime)
+
+
+# Reverse-engineered from the "official" driver script.
+# Need to run the lights_pulse while waiting for the sensor
+def measure_gas():
+    global gas_sensor
+    gas_sensor._i2c.writeto(gas_sensor._addr, bytes([0x20, 0x08]))
+    t1 = ticks_ms()
+    for _i in range(2):
+        lights_pulse()
+    
+    # 2 * (SGP30_WORD_LEN+1)
+    crc_result = bytearray(2*(2+1))
+    gas_sensor._i2c.readfrom_into(gas_sensor._addr, crc_result)
+    result = []
+    for i in range(2):
+        word = crc_result[3*i], crc_result[3*i+1]
+        # Not going to bother checking checksums
+        result.append(word[0] << 8 | word[1])
+    return result
+
+
+
 # Reads the data from the sensors and updates the input_data dictionary
 # Todo: Secure value bounds when interpreting
 def read_data():
@@ -196,13 +237,9 @@ def read_data():
     ticks = ticks_ms()
     if(ticks>last_gas_time+GAS_MEASURE_INTERVAL):
         last_gas_time = ticks
-        co2eq, tvoc = gas_sensor.iaq_measure()
+        co2eq, tvoc = measure_gas()#gas_sensor.iaq_measure()
         print("CO2eq = %d ppm \t TVOC = %d ppb" % (co2eq, tvoc))
-    #if(time()>last_baseline_time+GAS_BASELINE_INTERVAL):
-     #   bl = gas_sensor.get_iaq_baseline()
-      #  print("Gas baseline: "+str(bl))
-       # sysutil.log("Gas baseline: "+str(bl))
-        #last_baseline_time = time()
+
         
        
 
@@ -214,22 +251,6 @@ def read_data():
     input_data["temp"] = thermistor.read_u16()
         
 
-
-def lights_pulse():
-    global settings
-    if(settings["lights"]==0 or settings["lights"]==2 and lights_pulse_ontime<=0.003):
-        light_system.value(0)
-        return
-    elif(settings["lights"]==1):
-        light_system.value(1)
-        return
-        
-    #global lights_pulse_ontime
-    #global lights_pulse_offtime
-    light_system.value(1)
-    sleep(lights_pulse_ontime)
-    light_system.value(0)
-    sleep(lights_pulse_offtime)
     
     
 
