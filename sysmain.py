@@ -12,6 +12,7 @@ import AuthHandler
 import threading
 import os
 import adafruit_sgp30 as sgp
+import math
 
 active=True
 
@@ -26,11 +27,16 @@ GAS_BASELINE_INTERVAL = const(600)
 # Total width for LEDs using Pulse Width Modulation
 PW_TOTAL = const(0.02)
 
+# Total voltage across the Pico's 3V3 and Ground terminals
+VS = 3.3
+
 
 # Modified by the script. Kept here so as to be recalculated
 # only when changed, rather than every cycle
 lights_pulse_ontime = PW_TOTAL*0.5
 lights_pulse_offtime = PW_TOTAL*0.5
+
+alarm_timer = 0
 
 # Inputs
 
@@ -115,6 +121,9 @@ last_gas_time = 0
 
 last_baseline_time = time()+60
 
+alarm_timer = 0
+alarm_tripped = False
+
 # Whether or not a gas sensor measurement has been made after sending the measure command
 measured_gas = False
 
@@ -187,6 +196,16 @@ def lights_pulse():
     sleep(lights_pulse_offtime)
 
 
+
+def run_alarm():
+    global buzzer
+    t = ticks_ms()
+    if(t > alarm_timer):
+        buzzer.toggle()
+        alarm_timer = t+1000
+
+
+
 # Reverse-engineered from the "official" driver script.
 # Need to run the lights_pulse while waiting for the sensor
 def measure_gas():
@@ -206,6 +225,12 @@ def measure_gas():
         result.append(word[0] << 8 | word[1])
     return result
 
+
+def calc_temp_from_voltage(v):
+    # Other resistor in our voltage divider circuit is 10kΩ
+    r = (10*v)/(VS-v)
+    temp = round(1/(1/298+1/3960*math.log(r/10)) - 273, 1)
+    print("Temperature: "+temp)
 
 
 # Reads the data from the sensors and updates the input_data dictionary
@@ -228,9 +253,14 @@ def read_data():
         lights_pulse_ontime=0
     
     
-    
     if(time()>last_motion_time+MOTION_TIMEOUT):
         heat_system.value(0)
+        input_data["occupancy"]=False
+
+    if(ticks_ms()%1000==0):
+        calc_temp_from_voltage(thermistor.read_u16())
+
+    
     
     ventilation_system.value(settings["vent"])
 
@@ -260,12 +290,24 @@ def read_data():
 def pir_handler(pin):
     global heat_system
     global last_motion_time
+    global settings
+    global input_data
     sleep(0.1)
-    if(pin.value()):
-        print("Motion detected")
-        last_motion_time = time()
-        heat_system.value(1)
-        
+    if(!pin.value()):
+        return
+
+    if(settings["alarm"]>0):
+        alarm_tripped=True
+        sysutil.log("Motion alarm tripped!")
+        return
+
+
+
+    input_data["occupancy"]=True
+    print("Motion detected")
+    last_motion_time = time()
+    #heat_system.value(1)
+    
 
 # Checks for a valid cookie in an http request (string)
 # Returns true if there is a cookie and it contains a valid access token, otherwise false.
@@ -286,15 +328,16 @@ def check_cookie(request):
     token = cookiestr[token_index+6:token_index+6+24]
     return AuthHandler.is_valid_token(token), token
 
-param_values = ["Off","On","Passive"]
+
 
 
 # Main settings (on-off-passive) to be moved to helper function
 def set_settings(params,agent):
+    param_values = ["Off","On","Passive"]
     changed=False
     if("heat_stats" in params):
         value = param_values.index(params["heat_stats"])
-        if(value<0):
+        if(value<0 || value>2):
             value=2
         if(value!=settings["heat"]):
             changed=True
@@ -303,7 +346,7 @@ def set_settings(params,agent):
             print("Heater set to "+param_values[value]+" by "+agent)
     if("light_stats" in params):
         value = param_values.index(params["light_stats"])
-        if(value<0):
+        if(value<0 || value>2):
             value=2
         if(value!=settings["lights"]):
             changed=True
@@ -312,7 +355,7 @@ def set_settings(params,agent):
             print("Lights set to "+param_values[value]+" by "+agent)
         if("Ventilation_stats" in params):
             value = param_values.index(params["Ventilation_stats"])
-            if(value<0):
+            if(value<0 || value>2):
                 value=2
             if(value!=settings["vent"]):
                 changed=True
@@ -324,6 +367,9 @@ def set_settings(params,agent):
         if(value!=settings["alarm"]):
             changed=True
             settings["alarm"] = value
+            if(value==0):
+                alarm_tripped = False
+                buzzer.value(1)
             sysutil.log("Alarm turned "+param_values[value]+" by "+agent)
             print("Alarm turned "+param_values[value]+" by "+agent)
     if("settemp" in params):
@@ -446,9 +492,12 @@ PIR.irq(trigger=Pin.IRQ_RISING, handler=pir_handler)
 # the pulse-width modulation on the LEDs. So, we run the PWM LEDs on a separate thread also.
 def machine_loop():
     global active
+    global alarm_tripped
     while active:
         read_data()
         lights_pulse()
+        if(alarm_tripped):
+            run_alarm()
     
     
     print("Stopped machine loop")
