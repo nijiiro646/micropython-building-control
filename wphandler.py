@@ -29,8 +29,10 @@ def get_file(href):
     # Don't want to keep this in memory any longer than necessary, Pico has only 200kB of RAM.
     if(ext=="webp"):
         return "HTTP/1.1 200 OK", "image/webp", open(href,"rb").read()
-    elif(ext=="ico"):
+    elif(ext=="ico" or ext=="png"):
         return "HTTP/1.1 200 OK", "image/png", open(href,"rb").read()
+    elif(ext=="gif"):
+        return "HTTP/1.1 200 OK", "image/gif", open(href,"rb").read()
     else:
         return "HTTP/1.1 200 OK", "text/html", open(href,"rt").read()
 
@@ -51,7 +53,7 @@ def get_element_id(html_line):
 # Parameters: data - dictionary of measured data from the microcontroller
 # settings - dictionary of current settings for the system
 # login_state - boolean indicating whether the user is logged in with an admin account
-def get_html(data, settings, login_state):
+def get_html(data, settings, actuator_state, login_state):
     global pagesauce_base
     result = pagesauce_base
 
@@ -66,11 +68,25 @@ def get_html(data, settings, login_state):
         result = result.replace("/login.html","/logoutredirect.html")
         result = result.replace(" disabled","") # Should replace all instances
 
-    result = result.replace("%TEMP%",str(settings["settemp"]))
+    result = result.replace("%TEMP%",str(data["temp"]))
+    result = result.replace("%TEMPSETTING%",str(settings["settemp"]))
+    
 
     res_lines = result.split("\n")
     result = ""
     for line in res_lines:
+        if("alarm.gif" in line and not actuator_state["alarm"]):
+            continue
+        if("heater.gif" in line and not actuator_state["heater"]):
+            continue
+        if("lights.png" in line and not actuator_state["lights"]):
+            continue
+        if("vent.gif" in line and not actuator_state["vent"]):
+            continue
+    
+    
+    
+    
         if(not '"radio"' in line):
             result = result+line+"\n"
             continue
