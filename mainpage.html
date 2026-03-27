@@ -2,12 +2,14 @@
 <html lang="en">
 <head>
 <script>
-
+/*
     function setFn() {
         if(window.location.href!="http://192.168.4.13/mainpage.html"){
             window.location.replace("/mainpage.html");
             }
     }
+    
+*/
 </script>
 
 
@@ -66,6 +68,13 @@
             gap:40px;
             display: flex;
         }
+        .imgcontainer{
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        width: 50%;
+        
+        }
 
         .temp-label {
             display: block;
@@ -89,7 +98,7 @@
         }
 
             input[type="number"]::-webkit-outer-spin-button,
-      	input[type="number"]::-webkit-inner-spin-button {
+        input[type="number"]::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
         }
@@ -129,11 +138,11 @@
     <div class="temp-row">
         <div>
             <span class="temp-label">Current temperature</span>
-            <div class="box">21°C</div>
+            <div class="box">%TEMP%°C</div>
         </div>
         <div>
             <span class="temp-label">Set temperature</span>
-            <input type="number" name="settemp" class="box" min="18" max="25" value="%TEMP%"> <span>°C</span>
+            <input type="number" name="settemp" class="box" min="18" max="25" value="%TEMPSETTING%"> <span>°C</span>
         </div>
     </div>
     <p>Light Status:</p>
@@ -150,6 +159,7 @@
             <input type="radio" id="light_passive" name="light_stats" value="Passive" disabled>
             <label for="light_passive">Passive</label>
         </div>
+        <img src="lights.png" width=32>
         </div>
 
     <p>Heat Status:</p>
@@ -166,6 +176,7 @@
             <input type="radio" id="heat_passive" name="heat_stats" value="Passive" disabled>
             <label for="heat_passive">Passive</label>
         </div>
+        <img src="heater.gif" width=32>
 </div>
 
 <p>Ventilation status:</p>
@@ -182,6 +193,7 @@
             <input type="radio" id="Ventilation_passive" name="Ventilation_stats" value="Passive" disabled>
             <label for="Ventilation_passive">Passive</label>
         </div>
+        <img src="vent.gif" width=36>
     </div>
     <p>Alarm Status:</p>
     <div class="radio-row">
@@ -193,6 +205,7 @@
             <input type="radio" id="alarm_off" name="alarm_stats" value="Off" disabled>
             <label for="alarm_off">Off</label>
         </div>
+        <img src="alarm.gif" width=32>
     </div>
     <div class="center-wrapper">
   <input type="submit" value="Submit" class="submit-style" disabled>

@@ -526,7 +526,7 @@ def main_loop():
                 username = AuthHandler.get_user_for_token(token)
             except KeyError:
                 pass
-            finally:
+            else:
                 params = wphandler.parse_response(rqstring)
                 set_settings(params,username)
 
@@ -584,8 +584,7 @@ def machine_loop():
 machine_thread = threading.Thread(target=machine_loop)
 machine_thread.start()
 
-
-# Main data collection & control loop
+# Start main webpage loop
 while True:
     try:
         main_loop()
